@@ -1,10 +1,14 @@
 import os
 import uuid
+import logging
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponse
 from django.conf import settings
 from django.views.decorators.csrf import ensure_csrf_cookie
 from moviepy.editor import VideoFileClip
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 @ensure_csrf_cookie
 def home(request):
@@ -14,35 +18,39 @@ def home(request):
 def convert_video(request):
     """Convert uploaded video to Chrome-compatible background format (GIF) with trimming."""
     if request.method == 'POST' and request.FILES.get('video'):
-        # Get the uploaded file
-        video_file = request.FILES['video']
-        
-        # Check file extension
-        file_ext = os.path.splitext(video_file.name)[1].lower()
-        if file_ext not in ['.mp4', '.webm', '.gif']:
-            return JsonResponse({'error': 'Only .mp4, .webm, and .gif files are supported'}, status=400)
-        
-        # Generate unique filename
-        unique_filename = f"{uuid.uuid4()}{file_ext}"
-        upload_path = os.path.join(settings.MEDIA_ROOT, 'uploads', unique_filename)
-        
-        # Save the uploaded file
-        with open(upload_path, 'wb+') as destination:
-            for chunk in video_file.chunks():
-                destination.write(chunk)
-        
-        # Generate output filename
-        output_filename = f"{uuid.uuid4()}.gif"
-        output_path = os.path.join(settings.MEDIA_ROOT, 'converted', output_filename)
-        
-        # Get trim parameters
-        start_time = request.POST.get('start_time', '00:00:00')
-        duration = int(request.POST.get('duration', 6))
-        
-        # Set duration to 6 seconds (Chrome background requirement)
-        duration = 6
-        
         try:
+            # Get the uploaded file
+            video_file = request.FILES['video']
+            
+            # Check file extension
+            file_ext = os.path.splitext(video_file.name)[1].lower()
+            if file_ext not in ['.mp4', '.mov', '.webm', '.gif']:
+                return JsonResponse({'error': 'Only .mp4, .mov, .webm, and .gif files are supported'}, status=400)
+            
+            # Ensure media directories exist
+            os.makedirs(os.path.join(settings.MEDIA_ROOT, 'uploads'), exist_ok=True)
+            os.makedirs(os.path.join(settings.MEDIA_ROOT, 'converted'), exist_ok=True)
+            
+            # Generate unique filename
+            unique_filename = f"{uuid.uuid4()}{file_ext}"
+            upload_path = os.path.join(settings.MEDIA_ROOT, 'uploads', unique_filename)
+            
+            # Save the uploaded file
+            with open(upload_path, 'wb+') as destination:
+                for chunk in video_file.chunks():
+                    destination.write(chunk)
+            
+            # Generate output filename
+            output_filename = f"{uuid.uuid4()}.gif"
+            output_path = os.path.join(settings.MEDIA_ROOT, 'converted', output_filename)
+            
+            # Get trim parameters
+            start_time = request.POST.get('start_time', '00:00:00')
+            duration = int(request.POST.get('duration', 6))
+            
+            # Set duration to 6 seconds (Chrome background requirement)
+            duration = 6
+            
             # Convert start time from HH:MM:SS to seconds
             start_seconds = 0
             if start_time and start_time != '00:00:00':
@@ -108,6 +116,7 @@ def convert_video(request):
             })
             
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            logger.error(f"Error converting video: {str(e)}")
+            return JsonResponse({'error': f'Conversion failed: {str(e)}'}, status=500)
         
     return JsonResponse({'error': 'No video file provided'}, status=400)
