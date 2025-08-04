@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chromi - Make Your Desktop Come Alive</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    {% csrf_token %}
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">C</div>
+                <h1>Chromi</h1>
+            </div>
+            <p class="tagline">Make Your Desktop Come Alive</p>
+        </header>
+
+        <main class="main-content">
+            <div class="converter-card">
+                <div id="drop-area" class="drop-area">
+                    <div class="drop-icon">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2L13.09 8.26L20 9L13.09 9.74L12 16L10.91 9.74L4 9L10.91 8.26L12 2Z" fill="currentColor"/>
+                            <path d="M19 15L20.5 16.5L22 15L20.5 13.5L19 15Z" fill="currentColor"/>
+                            <path d="M5 15L6.5 16.5L8 15L6.5 13.5L5 15Z" fill="currentColor"/>
+                        </svg>
+                    </div>
+                    <h3>Drop your video here</h3>
+                    <p>or</p>
+                    <label for="file-input" class="file-input-label">
+                        <span>Choose a file</span>
+                    </label>
+                    <input type="file" id="file-input" accept=".mp4,.mov" hidden>
+                    <p class="file-types">Supported formats: MP4, MOV → GIF</p>
+                </div>
+
+                <div id="video-preview-container" class="video-preview-container hidden">
+                    <div class="video-wrapper">
+                        <video id="video-preview" controls></video>
+                        <div class="video-overlay">
+                            <div class="file-info">
+                                <span class="file-icon">📹</span>
+                                <span id="file-name" class="file-name"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="trim-controls">
+                        <h3>Trim Your Video</h3>
+                        <div class="trim-input-group">
+                            <label for="start-time-slider">
+                                <span class="label-text">Start Time</span>
+                                <span id="start-time-value" class="time-value">0:00</span>
+                            </label>
+                            <input type="range" id="start-time-slider" min="0" max="100" value="0" step="1" class="range-slider">
+                        </div>
+                        
+                        <div class="trim-input-group">
+                            <label for="duration-slider">
+                                <span class="label-text">Duration (3-10 seconds)</span>
+                                <span id="duration-value" class="time-value">5 seconds</span>
+                            </label>
+                            <input type="range" id="duration-slider" min="3" max="10" value="5" step="1" class="range-slider">
+                        </div>
+                        
+                        <button id="preview-trim-btn" class="btn btn-secondary">
+                            <span class="btn-icon">👁️</span>
+                            Preview Trimmed Clip
+                        </button>
+                    </div>
+                    
+                    <button id="convert-btn" class="btn btn-primary">
+                        <span class="btn-icon">✨</span>
+                        Convert to Chrome Background
+                    </button>
+                </div>
+
+                <div id="conversion-status" class="conversion-status hidden">
+                    <div class="loader-container">
+                        <div class="loader"></div>
+                        <div class="loader-text">Converting your video...</div>
+                    </div>
+                </div>
+
+                <div id="download-container" class="download-container hidden">
+                    <div class="success-icon">✅</div>
+                    <h3>Conversion Complete!</h3>
+                    <p>Your Chrome background is ready to download</p>
+                    <div class="download-actions">
+                        <button id="download-btn" class="btn btn-primary">
+                            <span class="btn-icon">⬇️</span>
+                            Download GIF
+                        </button>
+                        <button id="new-conversion-btn" class="btn btn-secondary">
+                            <span class="btn-icon">🔄</span>
+                            Convert Another Video
+                        </button>
+                    </div>
+                </div>
+
+                <div id="error-container" class="error-container hidden">
+                    <div class="error-icon">❌</div>
+                    <h3>Oops! Something went wrong</h3>
+                    <p id="error-message" class="error-message"></p>
+                    <button id="error-retry-btn" class="btn btn-secondary">
+                        <span class="btn-icon">🔄</span>
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <div class="footer-content">
+                <p>Upload limit: 100MB | No login required | Your files are not stored permanently</p>
+                <div class="creator-info">
+                    <p class="creator-name">Creators: The RockX Creators</p>
+                    <p class="creator-tagline">When Code meets Creativity and Xplodes</p>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get DOM elements
+            const dropArea = document.getElementById('drop-area');
+            const fileInput = document.getElementById('file-input');
+            const videoPreviewContainer = document.getElementById('video-preview-container');
+            const videoPreview = document.getElementById('video-preview');
+            const fileName = document.getElementById('file-name');
+            const convertBtn = document.getElementById('convert-btn');
+            const conversionStatus = document.getElementById('conversion-status');
+            const downloadContainer = document.getElementById('download-container');
+            const downloadBtn = document.getElementById('download-btn');
+            const newConversionBtn = document.getElementById('new-conversion-btn');
+            const errorContainer = document.getElementById('error-container');
+            const errorMessage = document.getElementById('error-message');
+            const errorRetryBtn = document.getElementById('error-retry-btn');
+            
+            // Trim controls
+            const startTimeSlider = document.getElementById('start-time-slider');
+            const startTimeValue = document.getElementById('start-time-value');
+            const durationSlider = document.getElementById('duration-slider');
+            const durationValue = document.getElementById('duration-value');
+            const previewTrimBtn = document.getElementById('preview-trim-btn');
+
+            // CSRF token
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            
+            // Current file and trim settings
+            let currentFile = null;
+            let convertedFileUrl = null;
+            let startTime = "00:00:00";
+            let duration = 5; // Default duration in seconds
+            let isTrimPreview = false;
+            let originalVideoTime = 0;
+            let trimPreviewTimeout = null;
+
+            // Prevent default drag behaviors
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+                document.body.addEventListener(eventName, preventDefaults, false);
+            });
+
+            // Highlight drop area when item is dragged over it
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
+
+            // Handle dropped files
+            dropArea.addEventListener('drop', handleDrop, false);
+            
+            // Handle file input change
+            fileInput.addEventListener('change', handleFiles, false);
+            
+            // Handle convert button click
+            convertBtn.addEventListener('click', convertVideo, false);
+            
+            // Handle download button click
+            downloadBtn.addEventListener('click', downloadConvertedVideo, false);
+            
+            // Handle new conversion button click
+            newConversionBtn.addEventListener('click', resetConverter, false);
+            
+            // Handle error retry button click
+            errorRetryBtn.addEventListener('click', resetConverter, false);
+            
+            // Handle start time slider change
+            startTimeSlider.addEventListener('input', updateStartTimeValue, false);
+            
+            // Handle duration slider change
+            durationSlider.addEventListener('input', updateDurationValue, false);
+            
+            // Handle preview trim button click
+            previewTrimBtn.addEventListener('click', previewTrimmedClip, false);
+            
+            // Initialize video metadata
+            videoPreview.addEventListener('loadedmetadata', initializeVideoControls, false);
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            function highlight() {
+                dropArea.classList.add('highlight');
+            }
+
+            function unhighlight() {
+                dropArea.classList.remove('highlight');
+            }
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles({ target: { files: files } });
+            }
+
+            function handleFiles(e) {
+                const files = e.target.files;
+                if (files.length) {
+                    const file = files[0];
+                    
+                    // Check file type
+                    const fileType = file.type;
+                    if (fileType !== 'video/mp4' && fileType !== 'video/quicktime') {
+                        showError('Please upload an MP4 or MOV video file.');
+                        return;
+                    }
+                    
+                    // Check file size (100MB limit)
+                    if (file.size > 100 * 1024 * 1024) {
+                        showError('File size exceeds 100MB limit.');
+                        return;
+                    }
+                    
+                    currentFile = file;
+                    displayVideoPreview(file);
+                }
+            }
+
+            function displayVideoPreview(file) {
+                // Create object URL for the file
+                const objectUrl = URL.createObjectURL(file);
+                
+                // Set video source and display preview
+                videoPreview.src = objectUrl;
+                fileName.textContent = file.name;
+                
+                // Show preview container, hide drop area
+                dropArea.classList.add('hidden');
+                videoPreviewContainer.classList.remove('hidden');
+                errorContainer.classList.add('hidden');
+            }
+
+            function convertVideo() {
+                if (!currentFile) return;
+                
+                // Show conversion status
+                videoPreviewContainer.classList.add('hidden');
+                conversionStatus.classList.remove('hidden');
+                
+                // Create form data
+                const formData = new FormData();
+                formData.append('video', currentFile);
+                formData.append('csrfmiddlewaretoken', csrfToken);
+                
+                // Add trim parameters
+                formData.append('start_time', startTime);
+                formData.append('duration', duration);
+                
+                // Send request to server
+                fetch('/convert/', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        convertedFileUrl = data.converted_url;
+                        showDownloadOptions();
+                    } else {
+                        showError(data.error || 'An error occurred during conversion.');
+                    }
+                })
+                .catch(error => {
+                    showError('An error occurred during conversion. Please try again.');
+                    console.error('Error:', error);
+                });
+            }
+
+            function updateDurationValue() {
+                duration = parseInt(durationSlider.value);
+                durationValue.textContent = duration + ' seconds';
+            }
+
+            function updateStartTimeValue() {
+                // Calculate start time based on slider percentage and video duration
+                if (videoPreview.duration) {
+                    const percentage = parseInt(startTimeSlider.value) / 100;
+                    const seconds = Math.floor(percentage * videoPreview.duration);
+                    const minutes = Math.floor(seconds / 60);
+                    const remainingSeconds = seconds % 60;
+                    startTimeValue.textContent = minutes + ':' + (remainingSeconds < 10 ? '0' : '') + remainingSeconds;
+                    
+                    // Format for backend: HH:MM:SS
+                    const hours = Math.floor(minutes / 60);
+                    const remainingMinutes = minutes % 60;
+                    startTime = (hours < 10 ? '0' : '') + hours + ':' + 
+                               (remainingMinutes < 10 ? '0' : '') + remainingMinutes + ':' + 
+                               (remainingSeconds < 10 ? '0' : '') + remainingSeconds;
+                }
+            }
+
+            function initializeVideoControls() {
+                originalVideoTime = videoPreview.currentTime;
+                // Set max value for start time slider based on video duration
+                // Leave 10 seconds at the end to ensure there's enough video for the minimum duration
+                const maxPercentage = Math.max(0, (videoPreview.duration - 10) / videoPreview.duration * 100);
+                startTimeSlider.max = Math.floor(maxPercentage);
+                updateStartTimeValue();
+            }
+
+            function previewTrimmedClip() {
+                // Get start time from slider
+                const percentage = parseInt(startTimeSlider.value) / 100;
+                const totalSeconds = Math.floor(percentage * videoPreview.duration);
+                
+                // Set video to start time
+                videoPreview.currentTime = totalSeconds;
+                
+                // Play the video for the specified duration
+                videoPreview.play();
+                isTrimPreview = true;
+                
+                // Stop after the duration
+                if (trimPreviewTimeout) {
+                    clearTimeout(trimPreviewTimeout);
+                }
+                
+                trimPreviewTimeout = setTimeout(() => {
+                    videoPreview.pause();
+                    isTrimPreview = false;
+                }, duration * 1000);
+            }
+
+            function showDownloadOptions() {
+                conversionStatus.classList.add('hidden');
+                downloadContainer.classList.remove('hidden');
+            }
+
+            function downloadConvertedVideo() {
+                if (convertedFileUrl) {
+                    const link = document.createElement('a');
+                    link.href = convertedFileUrl;
+                    link.download = 'chromi_background.gif';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            }
+
+            function resetConverter() {
+                // Reset all states
+                currentFile = null;
+                convertedFileUrl = null;
+                videoPreview.src = '';
+                fileName.textContent = '';
+                fileInput.value = '';
+                startTimeSlider.value = 0;
+                startTimeValue.textContent = '0:00';
+                durationSlider.value = 5;
+                durationValue.textContent = '5 seconds';
+                startTime = "00:00:00";
+                duration = 5;
+                isTrimPreview = false;
+                originalVideoTime = 0;
+                
+                if (trimPreviewTimeout) {
+                    clearTimeout(trimPreviewTimeout);
+                    trimPreviewTimeout = null;
+                }
+                
+                // Show drop area, hide other containers
+                dropArea.classList.remove('hidden');
+                videoPreviewContainer.classList.add('hidden');
+                conversionStatus.classList.add('hidden');
+                downloadContainer.classList.add('hidden');
+                errorContainer.classList.add('hidden');
+            }
+
+            function showError(message) {
+                errorMessage.textContent = message;
+                videoPreviewContainer.classList.add('hidden');
+                conversionStatus.classList.add('hidden');
+                downloadContainer.classList.add('hidden');
+                errorContainer.classList.remove('hidden');
+            }
+            
+            // Handle video end event to reset preview
+            videoPreview.addEventListener('ended', function() {
+                if (isTrimPreview) {
+                    isTrimPreview = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
