@@ -2,11 +2,17 @@
 # exit on error
 set -o errexit
 
+echo "Installing dependencies..."
 pip install -r requirements.txt
 
-# Create media directories if they don't exist
+echo "Creating media directories..."
 mkdir -p media/uploads
 mkdir -p media/converted
 
+echo "Collecting static files..."
 python manage.py collectstatic --no-input
-python manage.py migrate 
+
+echo "Running migrations..."
+python manage.py migrate
+
+echo "Build completed successfully!" 

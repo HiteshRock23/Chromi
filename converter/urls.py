@@ -6,4 +6,5 @@ app_name = 'converter'
 urlpatterns = [
     path('', views.home, name='home'),
     path('convert/', views.convert_video, name='convert_video'),
+    path('health/', views.health_check, name='health_check'),
 ]

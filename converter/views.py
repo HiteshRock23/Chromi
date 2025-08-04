@@ -15,6 +15,10 @@ def home(request):
     """Render the home page with the video converter interface."""
     return render(request, 'converter/home.html')
 
+def health_check(request):
+    """Simple health check endpoint."""
+    return JsonResponse({'status': 'healthy', 'message': 'Chromi is running!'})
+
 def convert_video(request):
     """Convert uploaded video to Chrome-compatible background format (GIF) with trimming."""
     if request.method == 'POST' and request.FILES.get('video'):

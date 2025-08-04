@@ -26,11 +26,11 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-8f&&kn#-_x-l1k^d+t@4gtkkal
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = ['chromi.onrender.com', 'localhost', '127.0.0.1', '.onrender.com']
+ALLOWED_HOSTS = ['chromi.onrender.com', 'localhost', '127.0.0.1', '.onrender.com', '*']
 
 # Security settings for production
 if not DEBUG:
-    SECURE_SSL_REDIRECT = False  # Changed to False for Render
+    SECURE_SSL_REDIRECT = False
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
@@ -52,7 +52,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # Add WhiteNoise for static files
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -145,3 +145,18 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 104857600  # 100MB
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
