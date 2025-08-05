@@ -51,8 +51,12 @@ def fix_antialias_in_file(file_path):
 def main():
     """Main function to fix ANTIALIAS references in MoviePy files."""
     # Find the site-packages directory
-    site_packages = os.path.join(sys.prefix, 'Lib', 'site-packages')
-    moviepy_path = os.path.join(site_packages, 'moviepy')
+    try:
+        import moviepy
+        moviepy_path = os.path.dirname(moviepy.__file__)
+    except ImportError:
+        site_packages = os.path.join(sys.prefix, 'Lib', 'site-packages')
+        moviepy_path = os.path.join(site_packages, 'moviepy')
     
     if not os.path.exists(moviepy_path):
         print(f"Error: Could not find MoviePy at {moviepy_path}")
