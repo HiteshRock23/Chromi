@@ -2,20 +2,24 @@ import os
 import uuid
 import logging
 import gc
+import tempfile
 from django.conf import settings
 from moviepy.editor import VideoFileClip
+from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
 
-def convert_video_task(upload_path: str, output_filename: str, start_seconds: int, duration: int):
+def convert_video_task(upload_path: str, output_basename: str, start_seconds: int, duration: int):
     """
     Background task: convert a trimmed segment of a video into a GIF suitable for Chrome backgrounds.
     Memory-conscious: loads without audio, trims early, downscales early, and ensures resources are closed.
     Returns a dict with converted_url on success.
     """
-    os.makedirs(os.path.join(settings.MEDIA_ROOT, 'converted'), exist_ok=True)
-    output_path = os.path.join(settings.MEDIA_ROOT, 'converted', output_filename)
+    # Use a secure temporary file for the conversion output
+    output_temp = tempfile.NamedTemporaryFile(delete=False, suffix='.gif')
+    output_path = output_temp.name
+    output_temp.close()
 
     video = None
     trimmed_video = None
@@ -39,7 +43,10 @@ def convert_video_task(upload_path: str, output_filename: str, start_seconds: in
             fuzz=1,
         )
 
-        converted_url = f"{settings.MEDIA_URL}converted/{output_filename}"
+        # Register a one-time download token for the temp output
+        download_token = str(uuid.uuid4())
+        cache.set(f'dl:{download_token}', output_path, timeout=600)
+        converted_url = f"/download/{download_token}/"
         # Optional: if running under RQ, store meta
         try:
             # Import lazily to avoid hard dependency when RQ is not installed
@@ -71,5 +78,12 @@ def convert_video_task(upload_path: str, output_filename: str, start_seconds: in
             pass
         del trimmed_video
         del video
+        # Remove the upload temp file
+        try:
+            if upload_path and os.path.exists(upload_path):
+                os.remove(upload_path)
+        except Exception:
+            pass
+        # Do not remove output here because it is served by token and deleted after serving
         gc.collect()
 

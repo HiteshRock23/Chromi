@@ -2,12 +2,14 @@ import os
 import uuid
 import logging
 import gc
+import tempfile
 from django.shortcuts import render
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, StreamingHttpResponse
 from django.conf import settings
 from django.views.decorators.csrf import ensure_csrf_cookie
 from moviepy.editor import VideoFileClip
 import importlib
+from django.core.cache import cache
 
 try:
     import tracemalloc  # stdlib; used for memory tracking when enabled
@@ -38,22 +40,17 @@ def convert_video(request):
             if file_ext not in ['.mp4', '.mov', '.webm', '.gif']:
                 return JsonResponse({'error': 'Only .mp4, .mov, .webm, and .gif files are supported'}, status=400)
             
-            # Ensure media directories exist
-            os.makedirs(os.path.join(settings.MEDIA_ROOT, 'uploads'), exist_ok=True)
-            os.makedirs(os.path.join(settings.MEDIA_ROOT, 'converted'), exist_ok=True)
-            
-            # Generate unique filename
-            unique_filename = f"{uuid.uuid4()}{file_ext}"
-            upload_path = os.path.join(settings.MEDIA_ROOT, 'uploads', unique_filename)
-            
-            # Save the uploaded file
-            with open(upload_path, 'wb+') as destination:
+            # Use a secure temporary file for upload
+            upload_temp = tempfile.NamedTemporaryFile(delete=False, suffix=file_ext)
+            upload_path = upload_temp.name
+            with upload_temp as destination:
                 for chunk in video_file.chunks():
                     destination.write(chunk)
             
-            # Generate output filename
-            output_filename = f"{uuid.uuid4()}.gif"
-            output_path = os.path.join(settings.MEDIA_ROOT, 'converted', output_filename)
+            # Prepare temp output file (GIF)
+            output_temp = tempfile.NamedTemporaryFile(delete=False, suffix='.gif')
+            output_path = output_temp.name
+            output_temp.close()
             
             # Get trim parameters
             start_time = request.POST.get('start_time', '00:00:00')
@@ -90,7 +87,7 @@ def convert_video(request):
                 job = queue.enqueue(
                     'converter.tasks.convert_video_task',
                     upload_path,
-                    output_filename,
+                    os.path.basename(output_path),
                     start_seconds,
                     duration,
                 )
@@ -109,6 +106,7 @@ def convert_video(request):
 
             video = None
             trimmed_video = None
+            download_token = None
             try:
                 # Load the video without audio to save memory
                 video = VideoFileClip(upload_path, audio=False)
@@ -135,8 +133,10 @@ def convert_video(request):
                     fuzz=1,
                 )
 
-                # Return the URL to the converted file
-                converted_url = f"{settings.MEDIA_URL}converted/{output_filename}"
+                # Register a one-time download token mapped to the temp file
+                download_token = str(uuid.uuid4())
+                cache.set(f'dl:{download_token}', output_path, timeout=600)
+                converted_url = f"/download/{download_token}/"
                 return JsonResponse({'success': True, 'converted_url': converted_url})
             finally:
                 # Ensure resources are freed
@@ -154,6 +154,18 @@ def convert_video(request):
                 del video
                 gc.collect()
                 log_mem('after_cleanup')
+                # Delete upload temp file always
+                try:
+                    if upload_path and os.path.exists(upload_path):
+                        os.remove(upload_path)
+                except Exception:
+                    pass
+                # If we failed before registering a download token, remove output temp as well
+                try:
+                    if (not download_token) and output_path and os.path.exists(output_path):
+                        os.remove(output_path)
+                except Exception:
+                    pass
             
         except Exception as e:
             logger.error(f"Error converting video: {str(e)}")
@@ -193,3 +205,32 @@ def job_status(request, job_id: str):
     if getattr(job, 'meta', None) and 'converted_url' in job.meta:
         response['converted_url'] = job.meta['converted_url']
     return JsonResponse(response)
+
+
+def download_converted(request, token: str):
+    """Stream the converted GIF by a one-time token and delete after streaming."""
+    key = f'dl:{token}'
+    path = cache.get(key)
+    if not path or not os.path.exists(path):
+        return JsonResponse({'error': 'File not found or expired'}, status=404)
+
+    # One-time: remove cache entry now
+    cache.delete(key)
+
+    def stream_and_delete(file_path: str, chunk_size: int = 8192):
+        try:
+            with open(file_path, 'rb') as f:
+                while True:
+                    data = f.read(chunk_size)
+                    if not data:
+                        break
+                    yield data
+        finally:
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+
+    response = StreamingHttpResponse(stream_and_delete(path), content_type='image/gif')
+    response['Content-Disposition'] = 'attachment; filename="chromi_background.gif"'
+    return response
