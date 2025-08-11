@@ -181,7 +181,7 @@ def convert_video(request):
                 trimmed_video = None
                 try:
                     # Set FFmpeg path for MoviePy
-                    import os
+                   
                     os.environ['IMAGEIO_FFMPEG_EXE'] = '/usr/bin/ffmpeg'
                     
                     # Load the video without audio to save memory
