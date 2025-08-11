@@ -93,6 +93,19 @@ This application can be deployed to any Django-compatible hosting service. Make 
 2. Configure proper static and media file serving
 3. Set up appropriate security measures
 
+### Memory- and OOM-safe operation (Render)
+
+- Start command for web service:
+  ```bash
+  gunicorn chrome_background_converter.wsgi:application --workers 1 --threads 2 --timeout 120
+  ```
+- MoviePy pipeline loads videos with `audio=False`, trims first, and resizes early (1280x720) to minimize memory.
+- All clips are closed in `finally` with `gc.collect()` to free memory promptly.
+- Optional background processing with Redis + RQ:
+  - Set `USE_RQ=true` and `REDIS_URL=redis://:password@host:6379/0`
+  - POST `/convert/` returns `{ enqueued: true, job_id }`
+  - GET `/jobs/<job_id>/` returns status and result when ready
+
 ## License
 
 This project is open source and available for personal and commercial use.

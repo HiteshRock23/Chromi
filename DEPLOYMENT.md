@@ -31,10 +31,12 @@ DEBUG=False
 chmod +x build.sh && ./build.sh
 ```
 
-#### **Start Command:**
+#### **Start Command (Render):**
+Use a single worker to prevent OOM while processing videos, a couple of threads for light concurrency, and a higher timeout for movie processing.
 ```bash
-gunicorn chrome_background_converter.wsgi:application
+gunicorn chrome_background_converter.wsgi:application --workers 1 --threads 2 --timeout 120
 ```
+Alternatively, the included `gunicorn.conf.py` is configured to mirror this behavior on Render by reading `PORT` and forcing `workers=1`, `threads=2`, `timeout=120`.
 
 ### **Files Updated:**
 
@@ -95,12 +97,32 @@ gunicorn chrome_background_converter.wsgi:application
 - Verify .env file is in root directory
 - Check Render environment variable settings
 
-### **Performance Optimizations:**
+### **Performance and Memory Optimizations (MoviePy/Numpy/Pillow):**
 
-1. **Static Files:** WhiteNoise provides efficient static file serving
-2. **Security:** HTTPS enforcement and security headers
-3. **Database:** SQLite for simplicity (consider PostgreSQL for scale)
-4. **File Uploads:** 100MB limit with proper configuration
+- **Gunicorn workers**: Limit to 1 worker to avoid parallel heavy jobs. `threads=2` for light concurrency, `timeout=120` for long-running conversions.
+- **Load videos without audio**: Open videos with `audio=False` unless needed.
+- **Early resize**: Apply `.resize(width=1280, height=720)` immediately after trimming to lower memory usage for all subsequent operations.
+- **Cleanup**: Always call `clip.close()`, then `del clip` and `gc.collect()` in a `finally` block.
+- **GIF encoding**: Prefer `fps=24`, `program='ffmpeg'`, `opt='OptimizePlus'`, `fuzz=1` to balance quality and memory.
+- **Pillow images**: Stream or chunk when possible; avoid holding large images in memory.
+
+The `converter/views.py` has been updated to follow these patterns and to optionally use `tracemalloc` for development-only memory tracking.
+
+### **Background Jobs (Optional but Recommended):**
+
+- Enable background processing to avoid blocking the web worker and reduce OOM risk.
+- Added lightweight integration using Redis and RQ:
+  - `USE_RQ=true` enables queueing
+  - `REDIS_URL=redis://:password@host:6379/0`
+  - POST `/convert/` enqueues a job and returns `{ enqueued: true, job_id }`
+  - GET `/jobs/<job_id>/` returns job status and result when ready
+
+Provision a separate RQ worker on Render using the same codebase and `worker` start command:
+```bash
+rq worker --url $REDIS_URL
+```
+
+If you don't enable RQ, conversions run inline with the same memory-optimized path.
 
 ### **Monitoring:**
 
@@ -108,6 +130,7 @@ gunicorn chrome_background_converter.wsgi:application
 - Monitor static file serving
 - Verify video conversion functionality
 - Test on different devices/browsers
+ - In development you can enable `ENABLE_TRACEMALLOC=true` to log memory snapshots before/after processing.
 
 ## ✅ **Expected Results:**
 

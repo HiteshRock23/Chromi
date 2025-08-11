@@ -1,15 +1,17 @@
 # Gunicorn configuration file
 import multiprocessing
+import os
 
-# Server socket
-bind = "0.0.0.0:10000"
+# Server socket: Render provides PORT env var
+bind = f"0.0.0.0:{os.getenv('PORT', '8000')}"
 backlog = 2048
 
-# Worker processes
-workers = multiprocessing.cpu_count() * 2 + 1
+# Worker processes: keep memory usage low on small instances
+workers = 1
+threads = 2
 worker_class = "sync"
 worker_connections = 1000
-timeout = 30
+timeout = 120
 keepalive = 2
 
 # Restart workers after this many requests, to help prevent memory leaks

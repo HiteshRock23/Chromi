@@ -160,3 +160,8 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+# Background jobs and memory diagnostics
+USE_RQ = os.getenv('USE_RQ', 'false').lower() == 'true'
+REDIS_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+ENABLE_TRACEMALLOC = os.getenv('ENABLE_TRACEMALLOC', 'false').lower() == 'true'

@@ -8,7 +8,7 @@ This document outlines the specific settings used for converting videos to Chrom
 |-----------|-------|-------------|
 | Resolution | 1280×720 (HD) | Standard HD resolution for optimal quality and performance |
 | Duration | 6 seconds | Fixed duration required by Chrome for background themes |
-| FPS | 30 | Standard frame rate for smooth animation |
+| FPS | 24–30 | 24 FPS reduces memory/CPU usage with acceptable smoothness |
 | Format | GIF | Chrome-compatible format for theme backgrounds |
 | Optimization | OptimizePlus | Enhanced optimization for better quality/size ratio |
 | Muted | Yes (GIF format has no audio) | No audio in the output file |
@@ -21,13 +21,14 @@ This document outlines the specific settings used for converting videos to Chrom
 The application uses MoviePy and FFmpeg with the following settings:
 
 ```python
-# Resize to HD resolution (1280x720)
+# Load without audio, trim first, resize early, then encode
+video = VideoFileClip(upload_path, audio=False)
+end_seconds = min(start_seconds + 6, video.duration)
+trimmed_video = video.subclip(start_seconds, end_seconds)
 trimmed_video = trimmed_video.resize(width=1280, height=720)
-
-# Convert to GIF format with optimized settings for Chrome background
 trimmed_video.write_gif(
     output_path,
-    fps=30,               # 30 frames per second for smooth animation
+    fps=24,               # 24 FPS to reduce memory/CPU
     program='ffmpeg',     # Use ffmpeg for better quality
     opt='OptimizePlus',   # Use optimization for better quality/size ratio
     fuzz=1                # Small fuzz factor for better compression while maintaining quality
@@ -36,11 +37,7 @@ trimmed_video.write_gif(
 
 ### Looping Enhancement
 
-To ensure smooth looping, the application attempts to find a better loop point by:
-
-1. Extending the clip slightly beyond the requested duration (if possible)
-2. Finding frames near the end that are similar to the starting frame
-3. Using this extended clip to create a more seamless loop
+For simplicity and lower memory on small instances, the default pipeline omits extended-loop search. If you re-enable advanced looping, ensure early downscale and strict cleanup after use.
 
 ```python
 # Ensure the video loops smoothly by checking similarity between start and end frames
@@ -66,3 +63,10 @@ Chrome has specific requirements for background GIFs in themes:
 - Should be optimized for quality and file size
 
 These settings ensure the background GIF plays smoothly while maintaining good visual quality.
+
+## Memory-Safe Practices
+
+- Open videos with `audio=False` unless audio is required.
+- Trim before other operations and apply `.resize()` immediately after trimming.
+- Always close clips (`clip.close()`), `del` variables, and call `gc.collect()` inside `finally`.
+- Avoid keeping large frames or arrays in memory; process and release promptly.
