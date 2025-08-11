@@ -28,9 +28,64 @@ def health_check(request):
     """Simple health check endpoint."""
     return JsonResponse({'status': 'healthy', 'message': 'Chromi is running!'})
 
+import subprocess
+import shutil
+
+def convert_with_ffmpeg(input_path, output_path, start_seconds, duration):
+    """Convert video to GIF using FFmpeg directly - more reliable than MoviePy."""
+    
+    # Check if ffmpeg is available
+    if not shutil.which('ffmpeg'):
+        raise Exception("FFmpeg not found on system")
+    
+    try:
+        # FFmpeg command for high-quality GIF conversion
+        cmd = [
+            'ffmpeg',
+            '-i', input_path,
+            '-ss', str(start_seconds),  # Start time in seconds
+            '-t', str(duration),        # Duration in seconds
+            '-vf', 'fps=15,scale=640:360:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse',
+            '-loop', '0',               # Loop forever (Chrome requirement)
+            '-y',                       # Overwrite output file
+            output_path
+        ]
+        
+        logger.info(f"Running FFmpeg command: {' '.join(cmd)}")
+        
+        result = subprocess.run(
+            cmd, 
+            capture_output=True, 
+            text=True, 
+            timeout=120,  # 2 minute timeout
+            cwd=os.path.dirname(input_path)
+        )
+        
+        if result.returncode != 0:
+            logger.error(f"FFmpeg stderr: {result.stderr}")
+            raise Exception(f"FFmpeg failed with return code {result.returncode}: {result.stderr}")
+        
+        # Check if output file was created and has content
+        if not os.path.exists(output_path) or os.path.getsize(output_path) == 0:
+            raise Exception("FFmpeg did not create a valid output file")
+            
+        logger.info(f"FFmpeg conversion successful. Output file size: {os.path.getsize(output_path)} bytes")
+        return True
+        
+    except subprocess.TimeoutExpired:
+        logger.error("FFmpeg conversion timed out")
+        raise Exception("Video conversion timed out after 2 minutes")
+    except Exception as e:
+        logger.error(f"FFmpeg conversion error: {str(e)}")
+        raise Exception(f"Video conversion failed: {str(e)}")
+
 def convert_video(request):
     """Convert uploaded video to Chrome-compatible background format (GIF) with trimming."""
     if request.method == 'POST' and request.FILES.get('video'):
+        upload_path = None
+        output_path = None
+        download_token = None
+        
         try:
             # Get the uploaded file
             video_file = request.FILES['video']
@@ -84,95 +139,122 @@ def convert_video(request):
                     redis_url = getattr(settings, 'REDIS_URL', 'redis://localhost:6379/0')
                     redis_conn = Redis.from_url(redis_url)
                     queue = Queue(connection=redis_conn)
-                job = queue.enqueue(
-                    'converter.tasks.convert_video_task',
-                    upload_path,
-                    os.path.basename(output_path),
-                    start_seconds,
-                    duration,
-                )
-                return JsonResponse({'enqueued': True, 'job_id': job.id})
+                    job = queue.enqueue(
+                        'converter.tasks.convert_video_task',
+                        upload_path,
+                        os.path.basename(output_path),
+                        start_seconds,
+                        duration,
+                    )
+                    return JsonResponse({'enqueued': True, 'job_id': job.id})
 
-            # Inline processing path
-            if settings.DEBUG and getattr(settings, 'ENABLE_TRACEMALLOC', False) and tracemalloc and not tracemalloc.is_tracing():
-                tracemalloc.start()
-
-            def log_mem(stage: str) -> None:
-                if getattr(settings, 'ENABLE_TRACEMALLOC', False) and tracemalloc and tracemalloc.is_tracing():
-                    current, peak = tracemalloc.get_traced_memory()
-                    logger.info(f"mem[{stage}] current={current/1e6:.1f}MB peak={peak/1e6:.1f}MB")
-
-            log_mem('before_load')
-
-            video = None
-            trimmed_video = None
-            download_token = None
+            # Try FFmpeg first (more reliable)
             try:
-                # Load the video without audio to save memory
-                video = VideoFileClip(upload_path, audio=False)
-
-                # Validate start time
-                if start_seconds >= video.duration:
-                    return JsonResponse({'error': 'Start time exceeds video duration'}, status=400)
-
-                # Trim first to reduce frames held in memory
-                end_seconds = min(start_seconds + duration, video.duration)
-                trimmed_video = video.subclip(start_seconds, end_seconds)
-
-                # Early downscale to lower memory footprint
-                trimmed_video = trimmed_video.resize(width=1280, height=720)
-
-                log_mem('before_write')
-
-                # Convert to GIF with conservative defaults for memory
-                trimmed_video.write_gif(
-                    output_path,
-                    fps=24,
-                    program='ffmpeg',
-                    opt='OptimizePlus',
-                    fuzz=1,
-                )
-
-                # Register a one-time download token mapped to the temp file
+                logger.info("Starting video conversion with FFmpeg...")
+                convert_with_ffmpeg(upload_path, output_path, start_seconds, duration)
+                logger.info("Video conversion completed successfully")
+                
+                # Register download token
                 download_token = str(uuid.uuid4())
                 cache.set(f'dl:{download_token}', output_path, timeout=600)
                 converted_url = f"/download/{download_token}/"
                 return JsonResponse({'success': True, 'converted_url': converted_url})
-            finally:
-                # Ensure resources are freed
+                
+            except Exception as ffmpeg_error:
+                logger.error(f"FFmpeg conversion failed: {str(ffmpeg_error)}")
+                
+                # Fallback to MoviePy if FFmpeg fails
+                logger.info("Attempting fallback to MoviePy...")
+                
+                # Inline processing path with MoviePy fallback
+                if settings.DEBUG and getattr(settings, 'ENABLE_TRACEMALLOC', False) and tracemalloc and not tracemalloc.is_tracing():
+                    tracemalloc.start()
+
+                def log_mem(stage: str) -> None:
+                    if getattr(settings, 'ENABLE_TRACEMALLOC', False) and tracemalloc and tracemalloc.is_tracing():
+                        current, peak = tracemalloc.get_traced_memory()
+                        logger.info(f"mem[{stage}] current={current/1e6:.1f}MB peak={peak/1e6:.1f}MB")
+
+                log_mem('before_load')
+
+                video = None
+                trimmed_video = None
                 try:
-                    if trimmed_video is not None:
-                        trimmed_video.close()
-                except Exception:
-                    pass
-                try:
-                    if video is not None:
-                        video.close()
-                except Exception:
-                    pass
-                del trimmed_video
-                del video
-                gc.collect()
-                log_mem('after_cleanup')
-                # Delete upload temp file always
-                try:
-                    if upload_path and os.path.exists(upload_path):
-                        os.remove(upload_path)
-                except Exception:
-                    pass
-                # If we failed before registering a download token, remove output temp as well
-                try:
-                    if (not download_token) and output_path and os.path.exists(output_path):
-                        os.remove(output_path)
-                except Exception:
-                    pass
+                    # Set FFmpeg path for MoviePy
+                    import os
+                    os.environ['IMAGEIO_FFMPEG_EXE'] = '/usr/bin/ffmpeg'
+                    
+                    # Load the video without audio to save memory
+                    video = VideoFileClip(upload_path, audio=False)
+
+                    # Validate start time
+                    if start_seconds >= video.duration:
+                        return JsonResponse({'error': 'Start time exceeds video duration'}, status=400)
+
+                    # Trim first to reduce frames held in memory
+                    end_seconds = min(start_seconds + duration, video.duration)
+                    trimmed_video = video.subclip(start_seconds, end_seconds)
+
+                    # Smaller resolution to reduce memory footprint
+                    trimmed_video = trimmed_video.resize(width=480, height=270)
+
+                    log_mem('before_write')
+
+                    # Convert to GIF with conservative defaults for memory
+                    trimmed_video.write_gif(
+                        output_path,
+                        fps=12,  # Lower FPS
+                        program='ffmpeg',
+                        opt='OptimizeTransparency',
+                        fuzz=2,
+                        verbose=False,
+                        logger=None
+                    )
+
+                    # Register a one-time download token mapped to the temp file
+                    download_token = str(uuid.uuid4())
+                    cache.set(f'dl:{download_token}', output_path, timeout=600)
+                    converted_url = f"/download/{download_token}/"
+                    return JsonResponse({'success': True, 'converted_url': converted_url})
+                    
+                except Exception as moviepy_error:
+                    logger.error(f"Both FFmpeg and MoviePy failed. FFmpeg: {ffmpeg_error}, MoviePy: {moviepy_error}")
+                    return JsonResponse({'error': 'Video conversion failed. Please try a different video file.'}, status=500)
+                finally:
+                    # Ensure resources are freed
+                    try:
+                        if trimmed_video is not None:
+                            trimmed_video.close()
+                    except Exception:
+                        pass
+                    try:
+                        if video is not None:
+                            video.close()
+                    except Exception:
+                        pass
+                    del trimmed_video
+                    del video
+                    gc.collect()
+                    log_mem('after_cleanup')
             
         except Exception as e:
             logger.error(f"Error converting video: {str(e)}")
             return JsonResponse({'error': f'Conversion failed: {str(e)}'}, status=500)
+        finally:
+            # Cleanup files
+            try:
+                if upload_path and os.path.exists(upload_path):
+                    os.remove(upload_path)
+            except Exception:
+                pass
+            # Only remove output if no download token was created
+            try:
+                if not download_token and output_path and os.path.exists(output_path):
+                    os.remove(output_path)
+            except Exception:
+                pass
         
     return JsonResponse({'error': 'No video file provided'}, status=400)
-
 
 def job_status(request, job_id: str):
     """Return RQ job status and result URL if available."""
