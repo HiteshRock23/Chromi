@@ -2,6 +2,8 @@
 import os
 import sys
 import glob
+from PIL import Image
+import moviepy
 
 def fix_antialias_in_file(file_path):
     """Fix ANTIALIAS references in a single file."""
