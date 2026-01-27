@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -6,11 +7,31 @@
     <title>Chromi - Make Your Desktop Come Alive</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/css/styles.css">
-    {% csrf_token %}
+    <!-- Use Inter for body and Poppins for headings -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+    <!-- Font Awesome (free CDN) for social icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+
+    {% comment %} Favicons {% endcomment %}
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'favicons/apple-touch-icon.png' %}?v=2">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicons/favicon-32x32.png' %}?v=2">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'favicons/favicon-16x16.png' %}?v=2">
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'favicons/android-chrome-192x192.png' %}?v=2">
+    <link rel="icon" type="image/png" sizes="512x512" href="{% static 'favicons/android-chrome-512x512.png' %}?v=2">
+    <link rel="shortcut icon" href="{% static 'favicons/favicon.ico' %}?v=2">
+    <link rel="manifest" href="{% static 'favicons/site.webmanifest' %}?v=2">
+    <meta name="theme-color" content="#000000">
 </head>
 <body>
+    <!-- Fullscreen background video -->
+    <div class="bg-video-wrap" aria-hidden="true">
+        <video class="bg-video" autoplay muted loop playsinline preload="auto">
+            <source src="{% static 'videos/bg.mp4' %}" type="video/mp4">
+            <!-- Add additional formats (webm) if you provide them -->
+        </video>
+        <div class="video-dim"></div>
+    </div>
     <div class="container">
         <header class="header">
             <div class="logo">
@@ -119,8 +140,29 @@
             <div class="footer-content">
                 <p>Upload limit: 100MB | No login required | Your files are not stored permanently</p>
                 <div class="creator-info">
-                    <p class="creator-name">Creators: The RockX Creators</p>
+                    <p class="creator-name">Build with ♡ by Student for Students. </p>
                     <p class="creator-tagline">When Code meets Creativity and Xplodes</p>
+                </div>
+
+                <!-- Social media footer (centered icons) -->
+                <div class="social-footer" aria-label="Social links">
+                    <ul class="social-links">
+                        <li>
+                            <a href="https://github.com/HiteshRock23" target="_blank" rel="noopener noreferrer" aria-label="GitHub">
+                                <i class="fab fa-github" aria-hidden="true"></i>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://www.linkedin.com/in/hitesh-r-04b20b354/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+                                <i class="fab fa-linkedin" aria-hidden="true"></i>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="https://x.com/Hitesh_Rock23" target="_blank" rel="noopener noreferrer" aria-label="X">
+                                <i class="fab fa-twitter" aria-hidden="true"></i>
+                            </a>
+                        </li>
+                    </ul>
                 </div>
             </div>
         </footer>
@@ -359,6 +401,8 @@
                 conversionStatus.classList.add('hidden');
                 downloadContainer.classList.remove('hidden');
             }
+
+            // preview feature removed: no modal or preview button present
 
             function downloadConvertedVideo() {
                 if (convertedFileUrl) {
