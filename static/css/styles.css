@@ -13,25 +13,25 @@
     --bg-card: rgba(255, 255, 255, 0.03);
     --bg-card-hover: rgba(255, 255, 255, 0.06);
     --bg-glass: rgba(255, 255, 255, 0.08);
-    
+
     /* Premium Text Colors */
     --text-primary: #ffffff;
     --text-secondary: #e8e8e8;
     --text-muted: #a0a0a0;
     --text-accent: #667eea;
-    
+
     /* Premium Gradient Accents */
     --accent-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     --accent-secondary: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
     --accent-danger: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
     --accent-gold: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-    
+
     /* Premium Glassmorphism */
     --glass-bg: rgba(255, 255, 255, 0.05);
     --glass-border: rgba(255, 255, 255, 0.1);
     --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
     --glass-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.5);
-    
+
     /* Premium Spacing */
     --spacing-xs: 0.5rem;
     --spacing-sm: 1rem;
@@ -39,7 +39,7 @@
     --spacing-lg: 2rem;
     --spacing-xl: 3rem;
     --spacing-xxl: 4rem;
-    
+
     /* Premium Border Radius */
     --radius-sm: 12px;
     --radius-md: 16px;
@@ -68,7 +68,8 @@ body {
     width: 100%;
     height: 100%;
     overflow: hidden;
-    z-index: -1; /* keep behind the content */
+    z-index: -1;
+    /* keep behind the content */
 }
 
 .bg-video {
@@ -78,7 +79,8 @@ body {
     width: 100%;
     height: 100%;
     transform: translate(-50%, -50%);
-    object-fit: cover; /* ensures the video covers the viewport */
+    object-fit: cover;
+    /* ensures the video covers the viewport */
     will-change: transform;
 }
 
@@ -86,7 +88,7 @@ body {
 .video-dim {
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,0.45);
+    background: rgba(0, 0, 0, 0.45);
     pointer-events: none;
 }
 
@@ -565,8 +567,13 @@ body {
 }
 
 @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
 }
 
 /* Download container */
@@ -648,8 +655,8 @@ body {
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.05);
-    box-shadow: 0 8px 30px rgba(0,0,0,0.45);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
 }
 
 .social-links {
@@ -662,8 +669,9 @@ body {
 }
 
 .social-links a {
-    color: rgba(255,255,255,0.95);
-    font-size: 26px; /* icon size ~24-28px */
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 26px;
+    /* icon size ~24-28px */
     display: inline-flex;
     width: 44px;
     height: 44px;
@@ -677,12 +685,12 @@ body {
 .social-links a:hover,
 .social-links a:focus {
     transform: translateY(-4px) scale(1.08);
-    box-shadow: 0 10px 30px rgba(78,84,200,0.18);
+    box-shadow: 0 10px 30px rgba(78, 84, 200, 0.18);
     color: #ffffff;
 }
 
 .social-links a:focus {
-    outline: 2px solid rgba(102,126,234,0.25);
+    outline: 2px solid rgba(102, 126, 234, 0.25);
     outline-offset: 4px;
 }
 
@@ -690,7 +698,12 @@ body {
     .social-links {
         gap: var(--spacing-sm);
     }
-    .social-links a { font-size: 22px; width: 40px; height: 40px; }
+
+    .social-links a {
+        font-size: 22px;
+        width: 40px;
+        height: 40px;
+    }
 }
 
 /* Preview UI removed (modal and preview button styles were deleted) */
@@ -740,44 +753,44 @@ body {
     .container {
         padding: var(--spacing-md);
     }
-    
+
     .header h1 {
         font-size: 2.8rem;
     }
-    
+
     .converter-card {
         padding: var(--spacing-xl);
     }
-    
+
     .drop-area {
         padding: var(--spacing-xl);
     }
-    
+
     .btn {
         padding: var(--spacing-md) var(--spacing-lg);
         font-size: 1rem;
     }
-    
+
     .download-actions {
         flex-direction: column;
         align-items: center;
     }
-    
+
     .trim-controls {
         padding: var(--spacing-lg);
     }
-    
+
     .trim-input-group {
         flex-direction: column;
         align-items: flex-start;
     }
-    
+
     .trim-input-group label {
         flex-direction: column;
         align-items: flex-start;
         gap: var(--spacing-sm);
     }
-    
+
     .range-slider {
         width: 100%;
     }
@@ -787,28 +800,17 @@ body {
     .header h1 {
         font-size: 2.2rem;
     }
-    
+
     .logo {
         flex-direction: column;
         gap: var(--spacing-sm);
     }
-    
+
     .converter-card {
         padding: var(--spacing-lg);
     }
-    
+
     .drop-area {
-        padding: var(--spacing-lg);
-    }
-    
-    .btn {
-        width: 100%;
-        justify-content: center;
-    }
-    
-    .logo-icon {
-        width: 48px;
-        height: 48px;
-        font-size: 1.5rem;
+        padding: var(--spacing-xl);
     }
 }
