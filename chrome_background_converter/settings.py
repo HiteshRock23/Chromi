@@ -161,7 +161,11 @@ from decouple import config, Csv
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
+# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY', default='your-local-secret-key')
+
+# Google Analytics 4 Measurement ID
+GA_MEASUREMENT_ID = config('GA_MEASUREMENT_ID', default=None)
 
 # Local Development Mode
 DEBUG = True

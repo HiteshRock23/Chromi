@@ -1,29 +1,9 @@
-<!DOCTYPE html>
+{% extends 'base.html' %}
 {% load static %}
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chromi - Make Your Desktop Come Alive</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Use Inter for body and Poppins for headings -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
-    <!-- Font Awesome (free CDN) for social icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous">
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
 
-    {% comment %} Favicons {% endcomment %}
-    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'favicons/apple-touch-icon.png' %}?v=2">
-    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'favicons/favicon-32x32.png' %}?v=2">
-    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'favicons/favicon-16x16.png' %}?v=2">
-    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'favicons/android-chrome-192x192.png' %}?v=2">
-    <link rel="icon" type="image/png" sizes="512x512" href="{% static 'favicons/android-chrome-512x512.png' %}?v=2">
-    <link rel="shortcut icon" href="{% static 'favicons/favicon.ico' %}?v=2">
-    <link rel="manifest" href="{% static 'favicons/site.webmanifest' %}?v=2">
-    <meta name="theme-color" content="#000000">
-</head>
-<body>
+{% block title %}Chromi - Make Your Desktop Come Alive{% endblock %}
+
+{% block content %}
     <!-- Fullscreen background video -->
     <div class="bg-video-wrap" aria-hidden="true">
         <video class="bg-video" autoplay muted loop playsinline preload="auto">
@@ -133,6 +113,7 @@
                         Try Again
                     </button>
                 </div>
+                {% csrf_token %}
             </div>
         </main>
 
@@ -167,9 +148,9 @@
             </div>
         </footer>
     </div>
+{% endblock %}
 
-
-
+{% block scripts %}
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Get DOM elements
@@ -276,22 +257,35 @@
                 const files = e.target.files;
                 if (files.length) {
                     const file = files[0];
-                    
-                    // Check file type
+                    console.log("File selected:", file.name, "Type:", file.type, "Size:", file.size);
+
+                    // Check file type (MIME type OR extension)
                     const fileType = file.type;
-                    if (fileType !== 'video/mp4' && fileType !== 'video/quicktime') {
+                    const fileNameFn = file.name.toLowerCase();
+                    const validExtensions = ['.mp4', '.mov'];
+                    const isValidExtension = validExtensions.some(ext => fileNameFn.endsWith(ext));
+                    
+                    // Relaxed validation: Accept if MIME type matches OR extension matches
+                    if ((fileType !== 'video/mp4' && fileType !== 'video/quicktime') && !isValidExtension) {
+                        console.error("Invalid file type:", fileType, "Extension valid:", isValidExtension);
                         showError('Please upload an MP4 or MOV video file.');
                         return;
                     }
                     
                     // Check file size (100MB limit)
                     if (file.size > 100 * 1024 * 1024) {
+                        console.error("File too large:", file.size);
                         showError('File size exceeds 100MB limit.');
                         return;
                     }
                     
                     currentFile = file;
-                    displayVideoPreview(file);
+                    try {
+                        displayVideoPreview(file);
+                    } catch (e) {
+                         console.error("Error displaying preview:", e);
+                         showError("Could not display video preview. Please try another file.");
+                    }
                 }
             }
 
@@ -464,5 +458,4 @@
             });
         });
     </script>
-</body>
-</html>
+{% endblock %}

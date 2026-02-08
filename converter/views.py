@@ -22,7 +22,10 @@ logger = logging.getLogger(__name__)
 @ensure_csrf_cookie
 def home(request):
     """Render the home page with the video converter interface."""
-    return render(request, 'converter/home.html')
+    context = {
+        'ga_measurement_id': getattr(settings, 'GA_MEASUREMENT_ID', None)
+    }
+    return render(request, 'converter/home.html', context)
 
 def health_check(request):
     """Simple health check endpoint."""
