@@ -33,10 +33,10 @@
                     </div>
                     <h3>Drop your video here</h3>
                     <p>or</p>
-                    <label for="file-input" class="file-input-label">
+                    <label for="videoInput" class="file-input-label">
                         <span>Choose a file</span>
                     </label>
-                    <input type="file" id="file-input" accept=".mp4,.mov" hidden>
+                    <input type="file" id="videoInput" accept="video/*" hidden>
                     <p class="file-types">Supported formats: MP4, MOV → Chrome background</p>
                 </div>
 
@@ -155,7 +155,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Get DOM elements
             const dropArea = document.getElementById('drop-area');
-            const fileInput = document.getElementById('file-input');
+            const fileInput = document.getElementById('videoInput');
             const videoPreviewContainer = document.getElementById('video-preview-container');
             const videoPreview = document.getElementById('video-preview');
             const fileName = document.getElementById('file-name');
@@ -192,6 +192,13 @@
             if (!dropArea || !fileInput || !videoPreview || !convertBtn) {
                 console.warn('Essential DOM elements for video converter not found. Script execution stopped.');
                 return;
+            }
+
+            // Ensure file input has correct attributes even if HTML is malformed
+            if (fileInput) {
+                if (!fileInput.getAttribute('accept')) {
+                    fileInput.setAttribute('accept', 'video/*');
+                }
             }
 
             // Prevent default drag behaviors
